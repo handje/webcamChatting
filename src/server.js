@@ -1,6 +1,7 @@
 import express from "express";
 import http from "http";
-import WebSocket from "ws";
+import SocketIO from "socket.io";
+//import WebSocket from "ws";
 
 const app = express();
 
@@ -13,34 +14,45 @@ app.get("/*", (_, res) => res.redirect("/"));
 const handleListen = () => console.log(`Listening on http://localhost:3000`);
 
 //for websocket
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server }); //http 위에 websocket server 생성
+const httpserver = http.createServer(app);
+const io = SocketIO(httpserver);
 
-//fake database
-const sockets = [];
-
-wss.on("connection", (socket) => {
-  //socket=연결된 브라우저
-  sockets.push(socket); //연결된 brower를 저장
-  socket["nickname"] = "Anonymous";
-
-  console.log("Connected to Browser✔");
-  socket.on("close", () => console.log("Disconnected to Browser ❌")); //browser창을 닫았을 때 실행
-
-  socket.on("message", (msg) => {
-    //msg: browser => server
-    const message = JSON.parse(msg);
-    switch (message.type) {
-      case "new_message":
-        sockets.forEach((aSocket) =>
-          aSocket.send(`${socket.nickname}: ${message.payload}`)
-        ); //send: server=>browser
-        break;
-      case "nickname":
-        socket["nickname"] = message.payload;
-        break;
-    }
+io.on("connection", (socket) => {
+  socket.on("enter_room", (msg, done) => {
+    console.log(msg);
+    setTimeout(() => {
+      done(); //frontend에서 실행되는 fn
+    }, 10000);
   });
 });
 
-server.listen(3000, handleListen);
+httpserver.listen(3000, handleListen);
+
+//using wss
+//const wss = new WebSocket.Server({ server }); //http 위에 websocket server 생성
+//fake database
+// const sockets = [];
+
+// wss.on("connection", (socket) => {
+//   //socket=연결된 브라우저
+//   sockets.push(socket); //연결된 brower를 저장
+//   socket["nickname"] = "Anonymous";
+
+//   console.log("Connected to Browser✔");
+//   socket.on("close", () => console.log("Disconnected to Browser ❌")); //browser창을 닫았을 때 실행
+
+//   socket.on("message", (msg) => {
+//     //msg: browser => server
+//     const message = JSON.parse(msg);
+//     switch (message.type) {
+//       case "new_message":
+//         sockets.forEach((aSocket) =>
+//           aSocket.send(`${socket.nickname}: ${message.payload}`)
+//         ); //send: server=>browser
+//         break;
+//       case "nickname":
+//         socket["nickname"] = message.payload;
+//         break;
+//     }
+//   });
+// });
