@@ -18,11 +18,21 @@ const httpserver = http.createServer(app);
 const io = SocketIO(httpserver);
 
 io.on("connection", (socket) => {
-  socket.on("enter_room", (msg, done) => {
-    console.log(msg);
-    setTimeout(() => {
-      done(); //frontend에서 실행되는 fn
-    }, 10000);
+  socket.on("enter_room", (roomName, showRoom) => {
+    socket.join(roomName); //enter room
+    showRoom(); //done: front에서 실행되는 fn
+    socket.to(roomName).emit("welcome"); //본인을 제외한 나머지 user들에게 새로운 user 입장소식 전달
+  });
+
+  socket.on("disconnecting", () => {
+    socket.rooms.forEach((room) => {
+      socket.to(room).emit("bye");
+    });
+  });
+
+  socket.on("message", (roomName, msg, done) => {
+    socket.to(roomName).emit("message", msg);
+    done();
   });
 });
 
