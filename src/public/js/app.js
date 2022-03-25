@@ -1,66 +1,192 @@
-const socket = io(); // io: 자동적으로 backend socket.io와 연결
+const socket = io();
+const myFace = document.getElementById("myFace");
+const muteBtn = document.getElementById("mute");
+const cameraBtn = document.getElementById("camera");
+const camerasSelect = document.getElementById("cameras");
 
-//room
-const welcome = document.getElementById("welcome");
-const form = welcome.querySelector("form");
+let myStream; //video+audio
+let muted = false;
+let cameraOff = false;
 
-//msg
-const room = document.getElementById("room");
-let roomName;
-
-room.hidden = true; //방 입장 전
-
-//화면에 msg출력
-function addMsg(message) {
-  const ul = room.querySelector("ul");
-  const li = document.createElement("li");
-  li.innerText = message;
-  ul.appendChild(li);
+async function getCameras() {
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const cameras = devices.filter((device) => device.kind === "videoinput");
+    cameras.forEach((camera) => {
+      const option = document.createElement("option");
+      option.value = camera.deviceId;
+      option.innerText = camera.label;
+      camerasSelect.appendChild(option);
+    });
+  } catch (e) {
+    console.log(e);
+  }
 }
 
-//send msg
-function handleMsgSubmit(event) {
-  event.preventDefault();
-  const input = room.querySelector("input");
-  const msg = input.value; //input value를 비우기전의 값을 넘겨주기 위해
-  socket.emit("message", roomName, input.value, () => {
-    addMsg(`You: ${msg}`);
-  });
-  input.value = "";
+async function getMedia() {
+  //비동기 예약어, promise를 반환
+  try {
+    myStream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: true,
+    });
+    myFace.srcObject = myStream; //화면에 비디오 출력
+    await getCameras(); //await 비동기처리메소드();
+  } catch (e) {
+    console.log(e);
+  }
+}
+function handlemuteBtn() {
+  myStream
+    .getAudioTracks()
+    .forEach((track) => (track.enabled = !track.enabled));
+  if (!muted) {
+    muteBtn.innerText = "Unmute";
+    muted = true;
+  } else {
+    muteBtn.innerText = "Mute";
+    muted = false;
+  }
 }
 
-function showRoom() {
-  welcome.hidden = true;
-  room.hidden = false;
-  const h3 = room.querySelector("h3");
-  h3.innerText = `Room: ${roomName}`;
-  const form = room.querySelector("form");
-  form.addEventListener("submit", handleMsgSubmit);
+function handlecameraBtn() {
+  myStream
+    .getVideoTracks()
+    .forEach((track) => (track.enabled = !track.enabled));
+  if (cameraOff) {
+    muteBtn.innerText = "Turn Camera off";
+    cameraOff = false;
+  } else {
+    muteBtn.innerText = "Turn Camera on";
+    cameraOff = true;
+  }
 }
 
-//send roomname
-function handleRoomSubmit(event) {
-  event.preventDefault();
-  const input = form.querySelector("input");
+muteBtn.addEventListener("click", handlemuteBtn);
+cameraBtn.addEventListener("click", handlecameraBtn);
+getMedia();
 
-  //socket.io 는 특정 event를 emit 할 수 있음, object 전달 가능, 원하는 정보 모두 전달 가능
-  //socket.emit(name,payload,etc,,,,,fn(for server))
-  socket.emit("enter_room", input.value, showRoom);
-  roomName = input.value;
-  input.value = "";
-}
+//-------------------------chatting : using socket.io-------------------------------------------------
+//------home.pug-----
+// div#welcome
+//                 form
+//                     input(placeholder="room name", required, type="text")
+//                     button Enter Room
+//                 h4 Open Rooms
+//                 ul
+//             div#room
+//                 h3
+//                 ul
+//                 form#nickname
+//                     input(placeholder="nickname", required, type="text")
+//                     button Ok
+//                 form#msg
+//                     input(placeholder="message", required, type="text")
+//                     button Send
 
-form.addEventListener("submit", handleRoomSubmit);
+//------app.js----------------
+// const socket = io(); // io: 자동적으로 backend socket.io와 연결
 
-socket.on("welcome", () => {
-  addMsg("someone joined!");
-});
+// //room
+// const welcome = document.getElementById("welcome");
+// const form = welcome.querySelector("form");
 
-socket.on("bye", () => {
-  addMsg("someone left!");
-});
+// //msg
+// const room = document.getElementById("room");
+// const nick = document.getElementById("nickname");
+// const msgBox = document.getElementById("msg");
 
-socket.on("message", addMsg);
+// let roomName;
+
+// room.hidden = true; //방 입장 전
+
+// //화면에 msg출력
+// function addMsg(message) {
+//   const ul = room.querySelector("ul");
+//   const li = document.createElement("li");
+//   li.innerText = message;
+//   ul.appendChild(li);
+// }
+
+// //send msg
+// function handleMsgSubmit(event) {
+//   event.preventDefault();
+//   const input = room.querySelector("#msg input");
+//   const msg = input.value; //input value를 비우기전의 값을 넘겨주기 위해
+//   socket.emit("message", roomName, input.value, () => {
+//     addMsg(`You: ${msg}`);
+//   });
+//   input.value = "";
+// }
+
+// //nickname
+// function handleNickNameSubmit(event) {
+//   event.preventDefault();
+//   msgBox.hidden = false;
+
+//   const input = room.querySelector("#nickname input");
+//   socket.emit("nickname", input.value);
+//   socket.emit("enter_room", roomName, showRoom);
+// }
+
+// //room
+// function showRoom() {
+//   const h3 = room.querySelector("h3");
+//   h3.innerText = `Room: ${roomName}`;
+//   const msgForm = room.querySelector("#msg");
+//   msgForm.addEventListener("submit", handleMsgSubmit);
+// }
+
+// //send roomname
+// function handleRoomSubmit(event) {
+//   event.preventDefault();
+//   const input = form.querySelector("input");
+
+//   welcome.hidden = true;
+//   room.hidden = false;
+//   msgBox.hidden = true;
+
+//   const nickNameForm = room.querySelector("#nickname");
+//   nickNameForm.addEventListener("submit", handleNickNameSubmit);
+//   //socket.io 는 특정 event를 emit 할 수 있음, object 전달 가능, 원하는 정보 모두 전달 가능
+//   //socket.emit(name,payload,etc,,,,,fn(for server))
+
+//   roomName = input.value;
+//   input.value = "";
+// }
+
+// function changeRoomTitle(newCount) {
+//   const h3 = room.querySelector("h3");
+//   h3.innerText = `Room: ${roomName} (${newCount})`;
+// }
+
+// form.addEventListener("submit", handleRoomSubmit);
+
+// socket.on("welcome", (user, newCount) => {
+//   changeRoomTitle(newCount);
+//   addMsg(`${user} joined.`);
+// });
+
+// socket.on("bye", (user, newCount) => {
+//   changeRoomTitle(newCount);
+//   addMsg(`${user} left.`);
+// });
+
+// socket.on("message", addMsg);
+
+// socket.on("room_change", (rooms) => {
+//   const roomList = welcome.querySelector("ul");
+//   roomList.innerHTML = "";
+//   if (rooms.length === 0) {
+//     //방이 삭제됐을때 업데이트
+//     return;
+//   }
+//   rooms.forEach((room) => {
+//     const li = document.createElement("li");
+//     li.innerText = room;
+//     roomList.append(li);
+//   });
+// });
 //------------------using wss-----------------------------------------------------------------
 // const socket = new WebSocket(`ws://${window.location.host}`); //socket=서버로의 연결
 // const nickname = document.querySelector("#nickname");
