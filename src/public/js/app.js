@@ -4,9 +4,14 @@ const muteBtn = document.getElementById("mute");
 const cameraBtn = document.getElementById("camera");
 const camerasSelect = document.getElementById("cameras");
 
+const call = document.getElementById("call");
+call.hidden = true;
+
 let myStream; //video+audio
 let muted = false;
 let cameraOff = false;
+let roomName;
+let myPeerConnection;
 
 async function getCameras() {
   try {
@@ -79,10 +84,50 @@ function handlecameraBtn() {
 async function handleCameraChange() {
   await getMedia(camerasSelect.value);
 }
+
 muteBtn.addEventListener("click", handlemuteBtn);
 cameraBtn.addEventListener("click", handlecameraBtn);
-getMedia();
 camerasSelect.addEventListener("input", handleCameraChange);
+
+//join_room
+const welcome = document.getElementById("welcome");
+const welcomeForm = welcome.querySelector("form");
+
+async function startMedia() {
+  welcome.hidden = true;
+  call.hidden = false;
+  await getMedia();
+  makeConnection();
+}
+
+function handleWelcomeSubmit(event) {
+  event.preventDefault();
+  const input = welcomeForm.querySelector("input");
+  roomName = input.value;
+  socket.emit("join_room", roomName, startMedia);
+  input.value = "";
+}
+welcomeForm.addEventListener("submit", handleWelcomeSubmit);
+
+socket.on("welcome", async () => {
+  console.log("someone join"); //이 코드를 받는 user가 peer A
+  const offer = await myPeerConnection.createOffer();
+  myPeerConnection.setLocalDescription(offer);
+  socket.emit("offer", offer, roomName);
+});
+socket.on("offer", async () => {
+  //이 코드를 받는 user가 peer B
+  const offer = await myPeerConnection.createOffer();
+  myPeerConnection.setLocalDescription(offer);
+  socket.emit("offer", offer, roomName);
+});
+//for WebRTC
+function makeConnection() {
+  myPeerConnection = new RTCPeerConnection();
+  myStream
+    .getTracks()
+    .forEach((track) => myPeerConnection.addTrack(track, myStream));
+}
 //-------------------------chatting : using socket.io-------------------------------------------------
 //------home.pug-----
 // div#welcome

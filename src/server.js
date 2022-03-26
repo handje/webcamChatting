@@ -24,6 +24,16 @@ instrument(io, {
 });
 const handleListen = () => console.log(`Listening on http://localhost:3000`);
 
+io.on("connection", (socket) => {
+  socket.on("join_room", (roomName, done) => {
+    socket.join(roomName);
+    done();
+  });
+  socket.on("offer", (offer, roomName) => {
+    socket.to(roomName).emit("offer", offer);
+  });
+});
+
 httpserver.listen(3000, handleListen);
 
 //for socket.io (chatting)
