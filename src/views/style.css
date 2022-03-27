@@ -27,7 +27,9 @@ body {
 header {
   color: white;
 }
-
+h2 {
+  border-bottom: solid 1px white;
+}
 .room {
   display: flex;
   width: 100%;
