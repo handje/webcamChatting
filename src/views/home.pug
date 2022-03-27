@@ -6,6 +6,7 @@ html(lang="en")
         meta(name="viewport", content="width=device-width, initial-scale=1.0")
         title Noom
         link(rel="stylesheet" href="https://unpkg.com/mvp.css")
+        //- link(rel='stylesheet', href='/stylesheets/style.css')
     body 
         header
             h1 It works!
@@ -23,5 +24,7 @@ html(lang="en")
                     button#mute Mute
                     button#camera Turn Camera Off
                     select#cameras
+                    video#peerStream(autoplay,playsinline,width="400",height="400")
+                    
         script(src="/socket.io/socket.io.js")
         script(src="/public/js/app.js")
