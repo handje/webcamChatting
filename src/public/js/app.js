@@ -5,10 +5,10 @@ const muteBtn = document.getElementById("mute");
 const cameraBtn = document.getElementById("camera");
 const camerasSelect = document.getElementById("cameras");
 const call = document.getElementById("call");
-const chat=document.getElementById("chat");
+const chat = document.getElementById("chat");
 
 call.hidden = true;
-chat.hidden=true;
+chat.hidden = true;
 
 let myStream;
 let muted = false;
@@ -16,7 +16,6 @@ let cameraOff = false;
 let roomName;
 let myPeerConnection;
 let myDataChannel;
-let message;
 
 async function getCameras() {
   try {
@@ -107,7 +106,7 @@ const welcomeForm = welcome.querySelector("form");
 async function initCall() {
   welcome.hidden = true;
   call.hidden = false;
-  chat.hidden=false;
+  chat.hidden = false;
   await getMedia();
   makeConnection();
 }
@@ -129,7 +128,7 @@ socket.on("welcome", async () => {
   myDataChannel = myPeerConnection.createDataChannel("chat");
   myDataChannel.addEventListener("message", (event) => {
     console.log(event.data);
-    showMsg(event.data);
+    showMsg(`Other: ${event.data}`);
   });
   console.log("made data channel");
   const offer = await myPeerConnection.createOffer();
@@ -141,12 +140,10 @@ socket.on("welcome", async () => {
 socket.on("offer", async (offer) => {
   myPeerConnection.addEventListener("datachannel", (event) => {
     myDataChannel = event.channel;
-    myDataChannel.addEventListener("message", (event) =>
-      {
+    myDataChannel.addEventListener("message", (event) => {
       console.log(event.data);
-      showMsg(event.data);
-      }
-    );
+      showMsg(`Other: ${event.data}`);
+    });
   });
   console.log("received the offer");
   myPeerConnection.setRemoteDescription(offer);
@@ -199,23 +196,23 @@ function handleAddStream(data) {
   peerFace.srcObject = data.stream;
 }
 
-function handleSendMsg(event){
+function handleSendMsg(event) {
   event.preventDefault();
   const input = chatForm.querySelector("input");
-  message=input.value;
+  message = input.value;
   myDataChannel.send(input.value);
-  showMsg(input.value);
-  input.value="";
+  showMsg(`You: ${input.value}`);
+  input.value = "";
 }
 
-function showMsg(event){
+function showMsg(event) {
   const ul = chat.querySelector("ul");
   const li = document.createElement("li");
   li.innerText = event;
   ul.appendChild(li);
 }
 const chatForm = chat.querySelector("form");
-chatForm.addEventListener("submit",handleSendMsg);
+chatForm.addEventListener("submit", handleSendMsg);
 
 //-------------------------chatting : using socket.io-------------------------------------------------
 //------home.pug-----
