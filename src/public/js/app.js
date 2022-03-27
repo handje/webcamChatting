@@ -1,25 +1,28 @@
 const socket = io();
+
 const myFace = document.getElementById("myFace");
 const muteBtn = document.getElementById("mute");
 const cameraBtn = document.getElementById("camera");
 const camerasSelect = document.getElementById("cameras");
-
 const call = document.getElementById("call");
-call.hidden = true;
+const chat=document.getElementById("chat");
 
-let myStream; //video+audio
+call.hidden = true;
+chat.hidden=true;
+
+let myStream;
 let muted = false;
 let cameraOff = false;
 let roomName;
 let myPeerConnection;
 let myDataChannel;
+let message;
 
 async function getCameras() {
   try {
     const devices = await navigator.mediaDevices.enumerateDevices();
     const cameras = devices.filter((device) => device.kind === "videoinput");
     const currentCamera = myStream.getVideoTracks()[0];
-
     cameras.forEach((camera) => {
       const option = document.createElement("option");
       option.value = camera.deviceId;
@@ -35,8 +38,7 @@ async function getCameras() {
 }
 
 async function getMedia(deviceId) {
-  //비동기 예약어, promise를 반환
-  const initialConstraints = {
+  const initialConstrains = {
     audio: true,
     video: { facingMode: "user" },
   };
@@ -46,18 +48,18 @@ async function getMedia(deviceId) {
   };
   try {
     myStream = await navigator.mediaDevices.getUserMedia(
-      deviceId ? cameraConstraints : initialConstraints
+      deviceId ? cameraConstraints : initialConstrains
     );
-    myFace.srcObject = myStream; //화면에 비디오 출력
+    myFace.srcObject = myStream;
     if (!deviceId) {
-      //처음 한번만 실행
-      await getCameras(); //await 비동기처리메소드();
+      await getCameras();
     }
   } catch (e) {
     console.log(e);
   }
 }
-function handlemuteBtn() {
+
+function handleMuteClick() {
   myStream
     .getAudioTracks()
     .forEach((track) => (track.enabled = !track.enabled));
@@ -69,19 +71,19 @@ function handlemuteBtn() {
     muted = false;
   }
 }
-
-function handlecameraBtn() {
+function handleCameraClick() {
   myStream
     .getVideoTracks()
     .forEach((track) => (track.enabled = !track.enabled));
   if (cameraOff) {
-    muteBtn.innerText = "Turn Camera off";
+    cameraBtn.innerText = "Turn Camera Off";
     cameraOff = false;
   } else {
-    muteBtn.innerText = "Turn Camera on";
+    cameraBtn.innerText = "Turn Camera On";
     cameraOff = true;
   }
 }
+
 async function handleCameraChange() {
   await getMedia(camerasSelect.value);
   if (myPeerConnection) {
@@ -89,21 +91,23 @@ async function handleCameraChange() {
     const videoSender = myPeerConnection
       .getSenders()
       .find((sender) => sender.track.kind === "video");
-    videoSender.replceTrack(videoTrack);
+    videoSender.replaceTrack(videoTrack);
   }
 }
 
-muteBtn.addEventListener("click", handlemuteBtn);
-cameraBtn.addEventListener("click", handlecameraBtn);
+muteBtn.addEventListener("click", handleMuteClick);
+cameraBtn.addEventListener("click", handleCameraClick);
 camerasSelect.addEventListener("input", handleCameraChange);
 
-//join_room
+//join a room
+
 const welcome = document.getElementById("welcome");
 const welcomeForm = welcome.querySelector("form");
 
 async function initCall() {
   welcome.hidden = true;
   call.hidden = false;
+  chat.hidden=false;
   await getMedia();
   makeConnection();
 }
@@ -111,60 +115,59 @@ async function initCall() {
 async function handleWelcomeSubmit(event) {
   event.preventDefault();
   const input = welcomeForm.querySelector("input");
-  roomName = input.value;
   await initCall();
-  socket.emit("join_room", roomName);
+  socket.emit("join_room", input.value);
+  roomName = input.value;
   input.value = "";
 }
+
 welcomeForm.addEventListener("submit", handleWelcomeSubmit);
 
+// Socket Code
+
 socket.on("welcome", async () => {
-  console.log("someone join"); //peer A
   myDataChannel = myPeerConnection.createDataChannel("chat");
   myDataChannel.addEventListener("message", (event) => {
     console.log(event.data);
+    showMsg(event.data);
   });
+  console.log("made data channel");
   const offer = await myPeerConnection.createOffer();
   myPeerConnection.setLocalDescription(offer);
+  console.log("sent the offer");
   socket.emit("offer", offer, roomName);
 });
 
 socket.on("offer", async (offer) => {
-  //peer B
-  console.log("received the offer");
   myPeerConnection.addEventListener("datachannel", (event) => {
     myDataChannel = event.channel;
-    myDataChannel.addEventListener("message", (event) => {
+    myDataChannel.addEventListener("message", (event) =>
+      {
       console.log(event.data);
-    });
+      showMsg(event.data);
+      }
+    );
   });
+  console.log("received the offer");
   myPeerConnection.setRemoteDescription(offer);
   const answer = await myPeerConnection.createAnswer();
   myPeerConnection.setLocalDescription(answer);
   socket.emit("answer", answer, roomName);
+  console.log("sent the answer");
 });
 
 socket.on("answer", (answer) => {
+  console.log("received the answer");
   myPeerConnection.setRemoteDescription(answer);
 });
 
 socket.on("ice", (ice) => {
+  console.log("received candidate");
   myPeerConnection.addIceCandidate(ice);
-  console.log("recieve cadidate");
 });
 
-function handleIce(data) {
-  console.log("send cadidate");
-  socket.emit("ice", data.candidate, roomName);
-}
+// RTC Code
 
-function handleAddStream(data) {
-  console.log("got an stream from my peer");
-  const peerStream = document.getElementById("peerStream");
-  peerStream.srcObject = data.stream;
-}
-
-//for WebRTC
 function makeConnection() {
   myPeerConnection = new RTCPeerConnection({
     iceServers: [
@@ -185,6 +188,35 @@ function makeConnection() {
     .getTracks()
     .forEach((track) => myPeerConnection.addTrack(track, myStream));
 }
+
+function handleIce(data) {
+  console.log("sent candidate");
+  socket.emit("ice", data.candidate, roomName);
+}
+
+function handleAddStream(data) {
+  const peerFace = document.getElementById("peerFace");
+  peerFace.srcObject = data.stream;
+}
+
+function handleSendMsg(event){
+  event.preventDefault();
+  const input = chatForm.querySelector("input");
+  message=input.value;
+  myDataChannel.send(input.value);
+  showMsg(input.value);
+  input.value="";
+}
+
+function showMsg(event){
+  const ul = chat.querySelector("ul");
+  const li = document.createElement("li");
+  li.innerText = event;
+  ul.appendChild(li);
+}
+const chatForm = chat.querySelector("form");
+chatForm.addEventListener("submit",handleSendMsg);
+
 //-------------------------chatting : using socket.io-------------------------------------------------
 //------home.pug-----
 // div#welcome

@@ -1,8 +1,6 @@
-import express from "express";
 import http from "http";
-import { Server } from "socket.io";
-import { instrument } from "@socket.io/admin-ui"; //for admin ui
-//import WebSocket from "ws";
+import SocketIO from "socket.io";
+import express from "express";
 
 const app = express();
 
@@ -12,21 +10,13 @@ app.use("/public", express.static(__dirname + "/public"));
 app.get("/", (_, res) => res.render("home"));
 app.get("/*", (_, res) => res.redirect("/"));
 
-const httpserver = http.createServer(app);
-const io = new Server(httpserver, {
-  cors: {
-    origin: ["https://admin.socket.io"],
-    credentials: true,
-  },
-});
-instrument(io, {
-  auth: false,
-});
-const handleListen = () => console.log(`Listening on http://localhost:3000`);
+const httpServer = http.createServer(app);
+const wsServer = SocketIO(httpServer);
 
-io.on("connection", (socket) => {
+wsServer.on("connection", (socket) => {
   socket.on("join_room", (roomName) => {
     socket.join(roomName);
+    socket.to(roomName).emit("welcome");
   });
   socket.on("offer", (offer, roomName) => {
     socket.to(roomName).emit("offer", offer);
@@ -39,7 +29,8 @@ io.on("connection", (socket) => {
   });
 });
 
-httpserver.listen(3000, handleListen);
+const handleListen = () => console.log(`Listening on http://localhost:3000`);
+httpServer.listen(3000, handleListen);
 
 //for socket.io (chatting)
 // function publicRooms() {
