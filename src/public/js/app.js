@@ -206,7 +206,6 @@ function handleAddStream(data) {
 function handleSendMsg(event) {
   event.preventDefault();
   const input = chatForm.querySelector("input");
-  message = input.value;
   try {
     myDataChannel.send(input.value);
     showMsg(`You: ${input.value}`);
