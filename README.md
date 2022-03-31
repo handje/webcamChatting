@@ -1,5 +1,4 @@
 # webcam_chatting
-https://handje.github.io/webcamChatting/
 Zoom clone using NodeJS, WebRTC and Websockets
 
 1. room 이름을 통해 채팅방 생성 및 참여
